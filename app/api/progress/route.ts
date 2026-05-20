@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
   const userId = req.nextUrl.searchParams.get("userId");
 
   if (!supabase) {
-    return NextResponse.json({ error: "Supabase is not configured." }, { status: 503 });
+    return NextResponse.json({ progress: null });
   }
 
   if (!userId) {
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
   const supabase = getSupabaseServerClient();
 
   if (!supabase) {
-    return NextResponse.json({ error: "Supabase is not configured." }, { status: 503 });
+    return NextResponse.json({ progress: null });
   }
 
   const body = (await req.json()) as Partial<ProgressPayload>;

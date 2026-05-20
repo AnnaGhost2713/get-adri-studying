@@ -8,6 +8,21 @@ function getClient() {
   return new GoogleGenerativeAI(apiKey);
 }
 
+export async function callGemini(prompt: string): Promise<string> {
+  const genAI = getClient();
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const result = await model.generateContent(prompt);
+  return result.response.text();
+}
+
+export function extractJSON<T>(text: string): T {
+  const codeBlock = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (codeBlock) return JSON.parse(codeBlock[1].trim()) as T;
+  const obj = text.match(/\{[\s\S]*\}/);
+  if (obj) return JSON.parse(obj[0]) as T;
+  throw new Error(`Kein JSON in Antwort: ${text.slice(0, 300)}`);
+}
+
 export async function askStudyAssistant(pdfText: string, userPrompt: string, mode: 'law' | 'math') {
   const genAI = getClient();
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });

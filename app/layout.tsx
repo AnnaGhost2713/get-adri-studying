@@ -6,17 +6,17 @@ import { UserProvider } from "@/lib/UserContext";
 
 export const metadata: Metadata = {
 	title: "Exam-Slayer",
-	description: "Study app for Law and Math",
+	description: "Lernapp für WPR und Mathematik",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
 	return (
-		<html lang="en">
+		<html lang="de">
 			<body className="bg-slate-50 text-slate-900">
 				<UserProvider>
 					<div className="min-h-screen flex">
 						<Sidebar />
-						<main className="flex-1 p-6">{children}</main>
+						<main className="flex-1 p-6 overflow-auto">{children}</main>
 					</div>
 				</UserProvider>
 			</body>
