@@ -1,125 +1,121 @@
 # Exam-Slayer
 
-KI-gestützte Lernapp für die Prüfungsvorbereitung an der TH Aschaffenburg — gamifiziert mit XP, Streak und KI-Korrektur.
+Eine Lernapp für Adri, gebaut zur Prüfungsvorbereitung an der TH Aschaffenburg. Die KI generiert Fragen und Aufgaben direkt aus den Vorlesungsskripten, korrigiert Lösungen und gibt konkretes Feedback.
 
-## Fächer
+## Was die App kann
 
-| Fach | Inhalt | Kapitel |
-|------|--------|---------|
-| **WPR** | Wirtschaftsprivatrecht (BGB, Gutachtenstil) | 9 |
-| **QM · WiMa** | Wirtschaftsmathematik (Funktionen, Differential- & Integralrechnung, Finanzmathematik) | 8 |
-| **QM · Statistik** | Deskriptive Statistik, Regression, Zufallsvariablen, Verteilungen | 9 |
+- Multiple-Choice-Quiz pro Kapitel (KI-generiert aus den Skripten)
+- Rechen- und Fallaufgaben mit KI-Korrektur und Musterlösung
+- Lösungen tippen oder Foto einer handschriftlichen Lösung hochladen
+- LaTeX-Rendering für Formeln (WiMa + Statistik)
+- XP und Streak für jede abgeschlossene Übung
+- Login mit Email/Passwort 
 
-## Lernablauf
+## Fächer & Kapitel
 
-Jedes Kapitel folgt demselben Ablauf:
+| Fach | Kapitel |
+|------|---------|
+| Wirtschaftsprivatrecht (WPR) | 9 — BGB, Gutachtenstil |
+| QM · Wirtschaftsmathematik | 8 — Differential-/Integralrechnung, Finanzmathematik |
+| QM · Statistik | 9 — Lage-/Streumaße, Regression, Verteilungen |
 
-1. **Wissenscheck** — 4 KI-generierte Multiple-Choice-Fragen aus dem Skript
-2. **Aufgabe lösen** — KI generiert eine Übungsaufgabe (mit LaTeX-Formeln für Mathe/Statistik)
-3. **KI-Korrektur** — detailliertes Feedback + Musterlösung + XP-Vergabe
+## Einrichtung
 
-## Tech-Stack
-
-- **Framework:** Next.js 15 (App Router), TypeScript, Tailwind CSS
-- **KI:** Google Gemini Flash (`@google/generative-ai`)
-- **Auth & DB:** Supabase (`@supabase/supabase-js`) — Email/Passwort
-- **LaTeX:** KaTeX (WiMa + Statistik)
-
-## Lokale Einrichtung
-
-### 1. Repository klonen & Dependencies installieren
+### 1. Klonen & installieren
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/AnnaGhost2713/get-adri-studying.git
 cd get-adri-studying
 npm install
 ```
 
-### 2. Umgebungsvariablen setzen
-
-`.env.local` im Projektroot anlegen:
+### 2. `.env.local` anlegen
 
 ```env
 # Supabase — Settings → API
 NEXT_PUBLIC_SUPABASE_URL=https://dein-projekt.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
-SUPABASE_SERVICE_ROLE_KEY=eyJ...   # geheim halten, nie ins Git!
+SUPABASE_SERVICE_ROLE_KEY=eyJ...   
 
-# Google Gemini
+# Google Gemini — aistudio.google.com
 GEMINI_API_KEY=AIza...
 ```
 
-### 3. Dev-Server starten
+### 3. Starten
 
 ```bash
 npm run dev
 ```
 
-App läuft auf [http://localhost:3000](http://localhost:3000).
+→ [http://localhost:3000](http://localhost:3000)
 
 ## Supabase einrichten
 
 1. Projekt auf [supabase.com](https://supabase.com) erstellen
-2. **Settings → API** → die drei Keys in `.env.local` eintragen (s. oben)
-3. **Authentication → Providers → Email** — ist standardmäßig aktiviert, kein extra Schritt nötig
-4. Datenbank-Schema ausführen (falls vorhanden: `supabase/schema.sql`)
+2. **Settings → API** → die Keys aus `.env.local` eintragen
+3. **Authentication → Providers → Email** → "Confirm email" deaktivieren (sonst braucht jede Registrierung eine Bestätigungsmail, was lokal umständlich ist)
+4. Unter **Authentication → URL Configuration → Redirect URLs** die Vercel-URL eintragen: `https://deine-app.vercel.app/auth/reset`
 
-## Skripte als PDF hinterlegen
+## Skripte hinterlegen
 
-Die KI nutzt die Vorlesungsskripte als Grundlage für Fragen und Aufgaben.
-PDFs in `/public/scripts/` ablegen — Namenskonvention:
+Die KI nutzt die Vorlesungsskripte als Grundlage. PDFs kommen in `/public/scripts/`.
+
+Die Dateinamen müssen zum `pdfPraefix` in `lib/lernplan.ts` passen — die App sucht nach Dateien, die mit dem Präfix beginnen:
 
 ```
 # Wirtschaftsmathematik
-1_QM_WiMa_Einführung_Mitschrift.pdf
-2_1_QM_WiMa_Grundlagen_Mitschrift.pdf
-2_2_QM_WiMa_Gleichungen_Mitschrift.pdf
-...
+1_QM_WiMa_Einführung_Mitschrift.pdf       → pdfPraefix: "1_QM_WiMa"
+2_1_QM_WiMa_Grundlagen_Mitschrift.pdf     → pdfPraefix: "2_1_QM_WiMa"
 
 # Statistik
-1_QM_Statistik_Gegenstand und Grundbegriffe_Mitschrift.pdf
-2_1_QM_Statistik_Darstellung univariater Datensätze_Mitschrift.pdf
-...
+1_QM_Statistik_Gegenstand...pdf           → pdfPraefix: "1_QM_Statistik"
 
-# WPR (beliebiger Name mit "wpr" am Anfang)
-wpr-skript.pdf
+# WPR (noch nicht nach Kapiteln geclustert)
+wpr-skript.pdf                            → pdfPraefix: "wpr"
 ```
 
-> Ohne PDFs funktioniert die App trotzdem — die KI generiert dann allgemeine Fragen zum Thema.
+Ohne PDFs funktioniert die App trotzdem — die KI generiert dann allgemeine Fragen zum Thema.
 
-## Auf Vercel deployen
+## Deployment (Vercel)
 
 ```bash
 git push origin main
 ```
 
-Vercel erkennt das Next.js-Projekt automatisch. Umgebungsvariablen unter **Settings → Environment Variables** eintragen (dieselben wie in `.env.local`, außer `SUPABASE_SERVICE_ROLE_KEY` nur unter _Server_-Umgebung).
+Vercel erkennt Next.js automatisch. Umgebungsvariablen unter **Settings → Environment Variables** eintragen — dieselben wie in `.env.local`. `SUPABASE_SERVICE_ROLE_KEY` nur für die _Production_-Umgebung setzen, nicht im Preview.
 
 ## Projektstruktur
 
 ```
 app/
-  page.tsx              # Dashboard
-  law/                  # WPR
+  page.tsx              # Dashboard (3 Fächer)
+  law/                  # WPR — Falltraining im Gutachtenstil
   qm/
     wima/               # Wirtschaftsmathematik
     statistik/          # Statistik
-  lernplan/             # Kapitelübersicht
-  login/                # Auth
+  lernplan/             # Kapitelübersicht mit Fortschritt
+  login/                # Login, Registrierung, Passwort vergessen
+  auth/reset/           # Passwort zurücksetzen (nach E-Mail-Link)
   api/
-    wpr/                # WPR KI-Route
-    qm/                 # QM KI-Route (WiMa + Statistik)
-    progress/           # Supabase XP-Sync
+    wpr/                # WPR — Quiz, Fall, Korrektur
+    qm/                 # WiMa + Statistik — Quiz, Aufgabe, Korrektur
+    progress/           # XP-Sync mit Supabase
 
 lib/
-  lernplan.ts           # Kapitel-Definitionen (WPR, WiMa, Statistik)
-  UserContext.tsx        # XP, Streak, Fortschritt pro Fach
-  AuthContext.tsx        # Supabase Auth
-  ai-client.ts          # Gemini-Wrapper
-  gamification.ts        # XP/Level-Logik
+  lernplan.ts           # Kapitel-Definitionen für alle drei Fächer
+  UserContext.tsx       # XP, Streak, Fortschritt (localStorage + Supabase)
+  AuthContext.tsx       # Login, Registrierung, Passwort-Reset
+  supabase-client.ts    # Supabase-Client (lazy init, browser)
+  ai-client.ts          # Gemini-Wrapper inkl. Bildanalyse für Fotos
+  pdf-utils.ts          # PDF-Lesefunktionen für die API-Routen
 
 components/
-  Sidebar.tsx            # Navigation mit QM-Klapps-Menü
-  AppShell.tsx           # Auth-Guard + Layout
-  MultipleChoiceQuiz.tsx # Wiederverwendbare MC-Komponente
+  AppShell.tsx          # Auth-Guard + Layout (Sidebar ein/aus)
+  Sidebar.tsx           # Navigation mit aufklappbarem QM-Bereich
+  MultipleChoiceQuiz.tsx
+  LoesungsEingabe.tsx   # Eingabe tippen oder Foto hochladen
 ```
+
+## Lizenz
+
+MIT — mach damit was du willst :D 
