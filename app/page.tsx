@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Scale, Calculator, Flame, Star, ChevronRight, Trophy, BookOpen } from "lucide-react";
+import { Scale, Calculator, BarChart2, Flame, Star, ChevronRight, Trophy, BookOpen } from "lucide-react";
 import { useUser } from "@/lib/UserContext";
 import { getAktuellesThema } from "@/lib/lernplan";
 
@@ -31,7 +31,7 @@ function HeutigeAufgabeKarte({
   buttonKlasse,
 }: {
   href: string;
-  farbe: "indigo" | "emerald";
+  farbe: "indigo" | "emerald" | "violet";
   icon: React.ReactNode;
   fach: string;
   themaIndex: number;
@@ -85,12 +85,13 @@ function HeutigeAufgabeKarte({
 }
 
 export default function Dashboard() {
-  const { xp, streak, level, wprFortschritt, matheFortschritt } = useUser();
+  const { xp, streak, level, wprFortschritt, wimaFortschritt, statistikFortschritt } = useUser();
   const xpBisNaechstesLevel = 500 - (xp % 500);
   const fortschrittProzent = Math.min(100, Math.floor(((xp % 500) / 500) * 100));
 
   const wprThema = getAktuellesThema("wpr", wprFortschritt.themaIndex);
-  const matheThema = getAktuellesThema("mathe", matheFortschritt.themaIndex);
+  const wimaThema = getAktuellesThema("wima", wimaFortschritt.themaIndex);
+  const statistikThema = getAktuellesThema("statistik", statistikFortschritt.themaIndex);
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -150,7 +151,7 @@ export default function Dashboard() {
             Lernplan ansehen <ChevronRight className="w-3 h-3" />
           </Link>
         </div>
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3">
           <HeutigeAufgabeKarte
             href="/law"
             farbe="indigo"
@@ -162,24 +163,38 @@ export default function Dashboard() {
             sitzungenZiel={wprThema.sitzungenZumAbschluss}
             buttonKlasse="bg-indigo-600 hover:bg-indigo-700"
           />
-          <HeutigeAufgabeKarte
-            href="/math"
-            farbe="emerald"
-            icon={<Calculator className="w-3.5 h-3.5 text-emerald-600" />}
-            fach="Mathe"
-            themaIndex={matheFortschritt.themaIndex}
-            themaName={matheThema.titel}
-            sitzungenAktuell={matheFortschritt.sitzungenAktuell}
-            sitzungenZiel={matheThema.sitzungenZumAbschluss}
-            buttonKlasse="bg-emerald-600 hover:bg-emerald-700"
-          />
+          <div className="grid md:grid-cols-2 gap-3">
+            <HeutigeAufgabeKarte
+              href="/qm/wima"
+              farbe="emerald"
+              icon={<Calculator className="w-3.5 h-3.5 text-emerald-600" />}
+              fach="QM · WiMa"
+              themaIndex={wimaFortschritt.themaIndex}
+              themaName={wimaThema.titel}
+              sitzungenAktuell={wimaFortschritt.sitzungenAktuell}
+              sitzungenZiel={wimaThema.sitzungenZumAbschluss}
+              buttonKlasse="bg-emerald-600 hover:bg-emerald-700"
+            />
+            <HeutigeAufgabeKarte
+              href="/qm/statistik"
+              farbe="violet"
+              icon={<BarChart2 className="w-3.5 h-3.5 text-violet-600" />}
+              fach="QM · Statistik"
+              themaIndex={statistikFortschritt.themaIndex}
+              themaName={statistikThema.titel}
+              sitzungenAktuell={statistikFortschritt.sitzungenAktuell}
+              sitzungenZiel={statistikThema.sitzungenZumAbschluss}
+              buttonKlasse="bg-violet-600 hover:bg-violet-700"
+            />
+          </div>
         </div>
       </div>
 
       {/* Info-Tipp */}
       <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
-        <strong>Tipp:</strong> Lade deine WPR- und Mathe-Skripte als PDF in{" "}
-        <code className="bg-amber-100 px-1 rounded">/public/scripts</code> hoch – die KI nutzt sie dann als Grundlage für Fragen und Fälle.
+        <strong>Tipp:</strong> Lade die QM-Skripte als PDF in{" "}
+        <code className="bg-amber-100 px-1 rounded">/public/scripts</code> hoch – die KI nutzt sie dann als Grundlage.
+        Benennungsbeispiel: <code className="bg-amber-100 px-1 rounded">1_QM_WiMa_Einführung_Mitschrift.pdf</code>
       </div>
     </div>
   );

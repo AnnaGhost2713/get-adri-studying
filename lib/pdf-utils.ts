@@ -56,7 +56,7 @@ export async function readAllScriptPdfs(limit = 3): Promise<ScriptDocument[]> {
  *   mathe.pdf                  ← gesamtes Mathe-Skript
  */
 export async function readPdfsForThema(
-  fach: "wpr" | "mathe",
+  fach: "wpr" | "wima" | "statistik",
   pdfPraefix: string
 ): Promise<ScriptDocument[]> {
   const files = await listScriptPdfs();

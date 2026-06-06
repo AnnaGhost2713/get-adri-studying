@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Scale, BookOpen, CheckCircle, XCircle, Trophy, RotateCcw, Loader2, ChevronRight } from "lucide-react";
 import MultipleChoiceQuiz, { MCFrage } from "@/components/MultipleChoiceQuiz";
+import LoesungsEingabe from "@/components/LoesungsEingabe";
 import { useUser } from "@/lib/UserContext";
 import { getAktuellesThema } from "@/lib/lernplan";
 
@@ -45,6 +46,8 @@ export default function WPRSeite() {
   const [quizScore, setQuizScore] = useState(0);
   const [aktuellerFall, setAktuellerFall] = useState<Fall | null>(null);
   const [loesung, setLoesung] = useState("");
+  const [fotoBase64, setFotoBase64] = useState<string | null>(null);
+  const [fotoMimeType, setFotoMimeType] = useState<string | null>(null);
   const [korrektur, setKorrektur] = useState<Korrektur | null>(null);
   const [fehler, setFehler] = useState("");
   const [verdienteXP, setVerdienteXP] = useState(0);
@@ -122,7 +125,7 @@ export default function WPRSeite() {
   }
 
   async function loesungAbgeben() {
-    if (!aktuellerFall || !loesung.trim()) return;
+    if (!aktuellerFall || (!loesung.trim() && !fotoBase64)) return;
     setFehler("");
     setSchritt("korrigieren");
     try {
@@ -134,6 +137,8 @@ export default function WPRSeite() {
           sachverhalt: aktuellerFall.sachverhalt,
           frage: aktuellerFall.frage,
           loesung,
+          imageBase64: fotoBase64 ?? undefined,
+          imageMimeType: fotoMimeType ?? undefined,
         }),
       });
       const data = await res.json();
@@ -160,6 +165,8 @@ export default function WPRSeite() {
     setQuizScore(0);
     setAktuellerFall(null);
     setLoesung("");
+    setFotoBase64(null);
+    setFotoMimeType(null);
     setKorrektur(null);
     setFehler("");
     setVerdienteXP(0);
@@ -309,16 +316,18 @@ export default function WPRSeite() {
 
           <div className="rounded-2xl bg-white border border-slate-200 p-6 space-y-3">
             <h2 className="font-semibold text-slate-800">Deine Lösung im Gutachtenstil</h2>
-            <p className="text-xs text-slate-500">Obersatz → Definition → Subsumtion → Ergebnis</p>
-            <textarea
-              className="w-full min-h-64 rounded-xl border border-slate-200 p-3 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-indigo-300"
-              placeholder={GUTACHTEN_PLACEHOLDER}
-              value={loesung}
-              onChange={(e) => setLoesung(e.target.value)}
+            <p className="text-xs text-slate-500">Obersatz → Definition → Subsumtion → Ergebnis — tippe oder fotografiere dein Papier.</p>
+            <LoesungsEingabe
+              textWert={loesung}
+              onTextChange={setLoesung}
+              fotoBase64={fotoBase64}
+              onFotoChange={(b64, mime) => { setFotoBase64(b64); setFotoMimeType(mime); }}
+              textPlaceholder={GUTACHTEN_PLACEHOLDER}
+              akzentFarbe="indigo"
             />
             <button
               onClick={loesungAbgeben}
-              disabled={!loesung.trim()}
+              disabled={!loesung.trim() && !fotoBase64}
               className="w-full py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 disabled:opacity-40 transition-colors"
             >
               Lösung abgeben

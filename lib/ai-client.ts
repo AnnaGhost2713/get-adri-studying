@@ -10,8 +10,22 @@ function getClient() {
 
 export async function callGemini(prompt: string): Promise<string> {
   const genAI = getClient();
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   const result = await model.generateContent(prompt);
+  return result.response.text();
+}
+
+export async function callGeminiWithImage(
+  prompt: string,
+  imageBase64: string,
+  mimeType: "image/jpeg" | "image/png" | "image/webp" = "image/jpeg"
+): Promise<string> {
+  const genAI = getClient();
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const result = await model.generateContent([
+    { text: prompt },
+    { inlineData: { mimeType, data: imageBase64 } },
+  ]);
   return result.response.text();
 }
 
@@ -25,7 +39,7 @@ export function extractJSON<T>(text: string): T {
 
 export async function askStudyAssistant(pdfText: string, userPrompt: string, mode: 'law' | 'math') {
   const genAI = getClient();
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
   const lawInstruction = [
     "You are a German law learning assistant focused on Gutachtenstil.",

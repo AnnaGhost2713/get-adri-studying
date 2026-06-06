@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { callGemini, extractJSON } from "@/lib/ai-client";
+import { callGemini, callGeminiWithImage, extractJSON } from "@/lib/ai-client";
 import { readPdfsForThema } from "@/lib/pdf-utils";
 
 type WPRAction = "quiz" | "fall" | "korrektur";
@@ -73,10 +73,12 @@ Antworte NUR mit diesem JSON-Format, ohne weiteren Text:
     }
 
     if (action === "korrektur") {
-      const { sachverhalt, frage, loesung } = body as {
+      const { sachverhalt, frage, loesung, imageBase64, imageMimeType } = body as {
         sachverhalt: string;
         frage: string;
         loesung: string;
+        imageBase64?: string;
+        imageMimeType?: string;
       };
       if (!sachverhalt || !loesung) {
         return NextResponse.json({ error: "sachverhalt und loesung erforderlich" }, { status: 400 });
@@ -108,7 +110,13 @@ Antworte NUR mit diesem JSON-Format, ohne weiteren Text:
   "normen": { "ok": true, "anmerkung": "..." },
   "musterloesung": "Eine vollständige Musterlösung im Gutachtenstil..."
 }`;
-      const raw = await callGemini(prompt);
+      const raw = imageBase64
+        ? await callGeminiWithImage(
+            prompt + "\n\nDie Lösung des Studenten ist als handschriftliches Foto beigefügt. Lies den Gutachtenstil und bewerte ihn.",
+            imageBase64,
+            (imageMimeType as "image/jpeg" | "image/png" | "image/webp") ?? "image/jpeg"
+          )
+        : await callGemini(prompt);
       const data = extractJSON<Record<string, unknown>>(raw);
       return NextResponse.json(data);
     }

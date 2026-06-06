@@ -5,7 +5,7 @@ import { readPdfsForThema } from "@/lib/pdf-utils";
 type MatheAction = "quiz" | "aufgabe" | "korrektur";
 
 async function getSourceText(pdfPraefix: string): Promise<string> {
-  const docs = await readPdfsForThema("mathe", pdfPraefix);
+  const docs = await readPdfsForThema("wima", pdfPraefix);
   if (docs.length === 0) return "";
   return docs
     .map((d) => `### ${d.fileName}\n${d.text}`)

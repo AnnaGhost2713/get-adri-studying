@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle, Circle, Lock, ChevronRight, Scale, Calculator } from "lucide-react";
+import { CheckCircle, Circle, Lock, ChevronRight, Scale, Calculator, BarChart2 } from "lucide-react";
 import { useUser } from "@/lib/UserContext";
-import { WPR_THEMEN, MATHE_THEMEN, Thema } from "@/lib/lernplan";
+import { WPR_THEMEN, WIMA_THEMEN, STATISTIK_THEMEN, Thema } from "@/lib/lernplan";
 
 type ThemaStatus = "abgeschlossen" | "aktuell" | "gesperrt";
 
-function themaStatus(index: number, aktuellerIndex: number, sitzungenAktuell: number, thema: Thema): ThemaStatus {
+function themaStatus(index: number, aktuellerIndex: number): ThemaStatus {
   if (index < aktuellerIndex) return "abgeschlossen";
   if (index === aktuellerIndex) return "aktuell";
   return "gesperrt";
@@ -91,6 +91,7 @@ function ThemaKarte({
 
 function FachAbschnitt({
   titel,
+  untertitel,
   farbe,
   icon,
   themen,
@@ -99,7 +100,8 @@ function FachAbschnitt({
   uebungsLink,
 }: {
   titel: string;
-  farbe: "indigo" | "emerald";
+  untertitel?: string;
+  farbe: "indigo" | "emerald" | "violet";
   icon: React.ReactNode;
   themen: Thema[];
   aktuellerIndex: number;
@@ -119,7 +121,9 @@ function FachAbschnitt({
           </div>
           <div>
             <h2 className="font-bold text-slate-800">{titel}</h2>
-            <p className="text-xs text-slate-500">{abgeschlossen} / {gesamt} Kapitel abgeschlossen</p>
+            <p className="text-xs text-slate-500">
+              {untertitel ? `${untertitel} · ` : ""}{abgeschlossen} / {gesamt} Kapitel abgeschlossen
+            </p>
           </div>
         </div>
         <Link
@@ -144,7 +148,7 @@ function FachAbschnitt({
             key={thema.id}
             thema={thema}
             index={i}
-            status={themaStatus(i, aktuellerIndex, sitzungenAktuell, thema)}
+            status={themaStatus(i, aktuellerIndex)}
             sitzungenAktuell={i === aktuellerIndex ? sitzungenAktuell : 0}
           />
         ))}
@@ -154,7 +158,7 @@ function FachAbschnitt({
 }
 
 export default function LernplanSeite() {
-  const { wprFortschritt, matheFortschritt } = useUser();
+  const { wprFortschritt, wimaFortschritt, statistikFortschritt } = useUser();
 
   return (
     <div className="max-w-2xl mx-auto space-y-8">
@@ -167,7 +171,8 @@ export default function LernplanSeite() {
       </div>
 
       <FachAbschnitt
-        titel="Wirtschaftsprivatrecht"
+        titel="WPR"
+        untertitel="Wirtschaftsprivatrecht"
         farbe="indigo"
         icon={<Scale className="w-4 h-4 text-indigo-600" />}
         themen={WPR_THEMEN}
@@ -176,15 +181,30 @@ export default function LernplanSeite() {
         uebungsLink="/law"
       />
 
-      <FachAbschnitt
-        titel="Mathematik"
-        farbe="emerald"
-        icon={<Calculator className="w-4 h-4 text-emerald-600" />}
-        themen={MATHE_THEMEN}
-        aktuellerIndex={matheFortschritt.themaIndex}
-        sitzungenAktuell={matheFortschritt.sitzungenAktuell}
-        uebungsLink="/math"
-      />
+      <div className="space-y-6">
+        <div className="flex items-center gap-2">
+          <Calculator className="w-4 h-4 text-slate-500" />
+          <h2 className="font-bold text-slate-700">Quantitative Methoden</h2>
+        </div>
+        <FachAbschnitt
+          titel="Wirtschaftsmathematik"
+          farbe="emerald"
+          icon={<Calculator className="w-4 h-4 text-emerald-600" />}
+          themen={WIMA_THEMEN}
+          aktuellerIndex={wimaFortschritt.themaIndex}
+          sitzungenAktuell={wimaFortschritt.sitzungenAktuell}
+          uebungsLink="/qm/wima"
+        />
+        <FachAbschnitt
+          titel="Statistik"
+          farbe="violet"
+          icon={<BarChart2 className="w-4 h-4 text-violet-600" />}
+          themen={STATISTIK_THEMEN}
+          aktuellerIndex={statistikFortschritt.themaIndex}
+          sitzungenAktuell={statistikFortschritt.sitzungenAktuell}
+          uebungsLink="/qm/statistik"
+        />
+      </div>
     </div>
   );
 }

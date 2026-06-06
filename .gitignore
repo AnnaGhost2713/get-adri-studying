@@ -8,3 +8,7 @@ tsconfig.tsbuildinfo
 .env
 .env.*
 !.env.example
+.DS_Store
+public/scripts
+
+

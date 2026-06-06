@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { addXP as addXPUtil, LEVEL_XP } from "@/lib/gamification";
-import { WPR_THEMEN, MATHE_THEMEN } from "@/lib/lernplan";
+import { WPR_THEMEN, WIMA_THEMEN, STATISTIK_THEMEN } from "@/lib/lernplan";
 
 type ThemaFortschritt = {
   themaIndex: number;
@@ -14,10 +14,11 @@ type UserContextType = {
   streak: number;
   level: number;
   wprFortschritt: ThemaFortschritt;
-  matheFortschritt: ThemaFortschritt;
+  wimaFortschritt: ThemaFortschritt;
+  statistikFortschritt: ThemaFortschritt;
   addXP: (amount: number) => void;
-  sitzungAbgeschlossen: (fach: "wpr" | "mathe") => void;
-  themaAendern: (fach: "wpr" | "mathe", index: number) => void;
+  sitzungAbgeschlossen: (fach: "wpr" | "wima" | "statistik") => void;
+  themaAendern: (fach: "wpr" | "wima" | "statistik", index: number) => void;
   setStreak: (s: number) => void;
 };
 
@@ -39,7 +40,7 @@ function resolveUserId(): string {
 }
 
 function heutigesDatum(): string {
-  return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  return new Date().toISOString().slice(0, 10);
 }
 
 function berechneStreak(letzterAktivTag: string | undefined, aktuellerStreak: number): number {
@@ -50,8 +51,8 @@ function berechneStreak(letzterAktivTag: string | undefined, aktuellerStreak: nu
   const gesternsStr = gestern.toISOString().slice(0, 10);
 
   if (letzterAktivTag === heute) return aktuellerStreak;
-  if (letzterAktivTag === gesternsStr) return aktuellerStreak; // Streak läuft noch
-  return 0; // Streak unterbrochen
+  if (letzterAktivTag === gesternsStr) return aktuellerStreak;
+  return 0;
 }
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
@@ -59,9 +60,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [streak, setStreakState] = useState<number>(0);
   const [userId, setUserId] = useState<string>("");
   const [wprFortschritt, setWprFortschritt] = useState<ThemaFortschritt>({ themaIndex: 0, sitzungenAktuell: 0 });
-  const [matheFortschritt, setMatheFortschritt] = useState<ThemaFortschritt>({ themaIndex: 0, sitzungenAktuell: 0 });
+  const [wimaFortschritt, setWimaFortschritt] = useState<ThemaFortschritt>({ themaIndex: 0, sitzungenAktuell: 0 });
+  const [statistikFortschritt, setStatistikFortschritt] = useState<ThemaFortschritt>({ themaIndex: 0, sitzungenAktuell: 0 });
 
-  // Initialisierung aus localStorage
   useEffect(() => {
     try {
       const id = resolveUserId();
@@ -71,16 +72,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       if (raw) {
         const parsed = JSON.parse(raw);
         setXp(parsed.xp ?? 0);
-
-        // Streak mit Datumslogik prüfen
         const berechneterStreak = berechneStreak(parsed.letzterAktivTag, parsed.streak ?? 0);
         setStreakState(berechneterStreak);
-
         setWprFortschritt(parsed.wprFortschritt ?? { themaIndex: 0, sitzungenAktuell: 0 });
-        setMatheFortschritt(parsed.matheFortschritt ?? { themaIndex: 0, sitzungenAktuell: 0 });
+        // migrate old "matheFortschritt" key → wimaFortschritt
+        setWimaFortschritt(parsed.wimaFortschritt ?? parsed.matheFortschritt ?? { themaIndex: 0, sitzungenAktuell: 0 });
+        setStatistikFortschritt(parsed.statistikFortschritt ?? { themaIndex: 0, sitzungenAktuell: 0 });
       }
 
-      // Supabase-Sync (optional)
       fetch(`/api/progress?userId=${encodeURIComponent(id)}`)
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
@@ -96,7 +95,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Persistenz bei Änderungen
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -111,7 +109,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           streak,
           letzterAktivTag: prev.letzterAktivTag ?? heute,
           wprFortschritt,
-          matheFortschritt,
+          wimaFortschritt,
+          statistikFortschritt,
         })
       );
 
@@ -125,15 +124,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore
     }
-  }, [xp, streak, wprFortschritt, matheFortschritt, userId]);
+  }, [xp, streak, wprFortschritt, wimaFortschritt, statistikFortschritt, userId]);
 
   function addXP(amount: number) {
     const { xp: newXp } = addXPUtil(xp, amount);
     setXp(newXp);
   }
 
-  function sitzungAbgeschlossen(fach: "wpr" | "mathe") {
-    // Streak aktualisieren
+  function sitzungAbgeschlossen(fach: "wpr" | "wima" | "statistik") {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       const prev = raw ? JSON.parse(raw) : {};
@@ -151,7 +149,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       // ignore
     }
 
-    // Thema-Fortschritt vorankommen
     if (fach === "wpr") {
       setWprFortschritt((prev) => {
         const thema = WPR_THEMEN[prev.themaIndex];
@@ -161,11 +158,20 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         }
         return { ...prev, sitzungenAktuell: neueSitzungen };
       });
-    } else {
-      setMatheFortschritt((prev) => {
-        const thema = MATHE_THEMEN[prev.themaIndex];
+    } else if (fach === "wima") {
+      setWimaFortschritt((prev) => {
+        const thema = WIMA_THEMEN[prev.themaIndex];
         const neueSitzungen = prev.sitzungenAktuell + 1;
-        if (neueSitzungen >= thema.sitzungenZumAbschluss && prev.themaIndex < MATHE_THEMEN.length - 1) {
+        if (neueSitzungen >= thema.sitzungenZumAbschluss && prev.themaIndex < WIMA_THEMEN.length - 1) {
+          return { themaIndex: prev.themaIndex + 1, sitzungenAktuell: 0 };
+        }
+        return { ...prev, sitzungenAktuell: neueSitzungen };
+      });
+    } else {
+      setStatistikFortschritt((prev) => {
+        const thema = STATISTIK_THEMEN[prev.themaIndex];
+        const neueSitzungen = prev.sitzungenAktuell + 1;
+        if (neueSitzungen >= thema.sitzungenZumAbschluss && prev.themaIndex < STATISTIK_THEMEN.length - 1) {
           return { themaIndex: prev.themaIndex + 1, sitzungenAktuell: 0 };
         }
         return { ...prev, sitzungenAktuell: neueSitzungen };
@@ -173,11 +179,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  function themaAendern(fach: "wpr" | "mathe", index: number) {
+  function themaAendern(fach: "wpr" | "wima" | "statistik", index: number) {
     if (fach === "wpr") {
       setWprFortschritt({ themaIndex: Math.min(index, WPR_THEMEN.length - 1), sitzungenAktuell: 0 });
+    } else if (fach === "wima") {
+      setWimaFortschritt({ themaIndex: Math.min(index, WIMA_THEMEN.length - 1), sitzungenAktuell: 0 });
     } else {
-      setMatheFortschritt({ themaIndex: Math.min(index, MATHE_THEMEN.length - 1), sitzungenAktuell: 0 });
+      setStatistikFortschritt({ themaIndex: Math.min(index, STATISTIK_THEMEN.length - 1), sitzungenAktuell: 0 });
     }
   }
 
@@ -190,7 +198,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         streak,
         level,
         wprFortschritt,
-        matheFortschritt,
+        wimaFortschritt,
+        statistikFortschritt,
         addXP,
         sitzungAbgeschlossen,
         themaAendern,
