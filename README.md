@@ -1,27 +1,29 @@
 # Exam-Slayer
 
-Eine Lernapp für Adri, gebaut zur Prüfungsvorbereitung an der TH Aschaffenburg. Die KI generiert Fragen und Aufgaben direkt aus den Vorlesungsskripten, korrigiert Lösungen und gibt konkretes Feedback.
+A study app built for Adri to prepare for exams at TH Aschaffenburg. The AI generates exercises directly from lecture slides, corrects solutions, and gives detailed feedback.
 
-## Was die App kann
+## What it does
 
-- Multiple-Choice-Quiz pro Kapitel (KI-generiert aus den Skripten)
-- Rechen- und Fallaufgaben mit KI-Korrektur und Musterlösung
-- Lösungen tippen oder Foto einer handschriftlichen Lösung hochladen
-- LaTeX-Rendering für Formeln (WiMa + Statistik)
-- XP und Streak für jede abgeschlossene Übung
-- Login mit Email/Passwort 
+- Generates practice problems per chapter using the actual lecture PDFs as context
+- AI correction with feedback and a model solution after each submission
+- Type your solution or upload a photo of handwritten work
+- LaTeX rendering for formulas (WiMa + Statistik)
+- XP and streak for every completed exercise
+- Login with email/password — Anna and Adri have separate progress
 
-## Fächer & Kapitel
+## Subjects & chapters
 
-| Fach | Kapitel |
-|------|---------|
-| Wirtschaftsprivatrecht (WPR) | 9 — BGB, Gutachtenstil |
-| QM · Wirtschaftsmathematik | 8 — Differential-/Integralrechnung, Finanzmathematik |
-| QM · Statistik | 9 — Lage-/Streumaße, Regression, Verteilungen |
+| Subject | Chapters |
+|---------|----------|
+| Wirtschaftsprivatrecht (WPR) | 9 — BGB, Gutachtenstil case analysis |
+| QM · Wirtschaftsmathematik | 8 + Probeklausur — Differential/Integral calculus, finance math |
+| QM · Statistik | 9 + Probeklausur — Descriptive stats, regression, distributions |
 
-## Einrichtung
+The **Probeklausur** chapter unlocks after all regular chapters are done. It generates multi-part exam-style problems based on the real practice exams (Übungsklausuren) with solutions.
 
-### 1. Klonen & installieren
+## Setup
+
+### 1. Clone & install
 
 ```bash
 git clone https://github.com/AnnaGhost2713/get-adri-studying.git
@@ -29,19 +31,19 @@ cd get-adri-studying
 npm install
 ```
 
-### 2. `.env.local` anlegen
+### 2. Create `.env.local`
 
 ```env
 # Supabase — Settings → API
-NEXT_PUBLIC_SUPABASE_URL=https://dein-projekt.supabase.co
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
-SUPABASE_SERVICE_ROLE_KEY=eyJ...   
+SUPABASE_SERVICE_ROLE_KEY=eyJ...   # server-side only, never commit this
 
 # Google Gemini — aistudio.google.com
 GEMINI_API_KEY=AIza...
 ```
 
-### 3. Starten
+### 3. Run
 
 ```bash
 npm run dev
@@ -49,73 +51,78 @@ npm run dev
 
 → [http://localhost:3000](http://localhost:3000)
 
-## Supabase einrichten
+## Supabase setup
 
-1. Projekt auf [supabase.com](https://supabase.com) erstellen
-2. **Settings → API** → die Keys aus `.env.local` eintragen
-3. **Authentication → Providers → Email** → "Confirm email" deaktivieren (sonst braucht jede Registrierung eine Bestätigungsmail, was lokal umständlich ist)
-4. Unter **Authentication → URL Configuration → Redirect URLs** die Vercel-URL eintragen: `https://deine-app.vercel.app/auth/reset`
+1. Create a project at [supabase.com](https://supabase.com)
+2. **Settings → API** → copy the keys into `.env.local`
+3. **Authentication → Providers → Email** → disable "Confirm email" (otherwise every signup needs an email confirmation, which is annoying locally)
+4. **Authentication → URL Configuration → Redirect URLs** → add your Vercel URL: `https://your-app.vercel.app/auth/reset`
 
-## Skripte hinterlegen
+## Adding lecture PDFs
 
-Die KI nutzt die Vorlesungsskripte als Grundlage. PDFs kommen in `/public/scripts/`.
-
-Die Dateinamen müssen zum `pdfPraefix` in `lib/lernplan.ts` passen — die App sucht nach Dateien, die mit dem Präfix beginnen:
+The AI uses the lecture slides as context for generating problems. PDFs go in `/public/scripts/` in the correct subfolder:
 
 ```
-# Wirtschaftsmathematik
-1_QM_WiMa_Einführung_Mitschrift.pdf       → pdfPraefix: "1_QM_WiMa"
-2_1_QM_WiMa_Grundlagen_Mitschrift.pdf     → pdfPraefix: "2_1_QM_WiMa"
-
-# Statistik
-1_QM_Statistik_Gegenstand...pdf           → pdfPraefix: "1_QM_Statistik"
-
-# WPR (noch nicht nach Kapiteln geclustert)
-wpr-skript.pdf                            → pdfPraefix: "wpr"
+public/scripts/
+  mathe/
+    wima/
+      1_QM_WiMa_Einführung_Mitschrift.pdf
+      2_1_QM_WiMa_Grundlagen_Mitschrift.pdf
+      1_Übungsklausur_QM_WiMa.pdf          ← picked up by Probeklausur chapter
+      1_Übungsklausur_QM_WiMa_Kurzlösung.pdf
+      ...
+    statistik/
+      1_QM_Statistik_Gegenstand...pdf
+      1_Übungsklausur_QM_Statistik.pdf     ← picked up by Probeklausur chapter
+      ...
+  wpr/
+      wpr-skript.pdf                       ← not yet split by chapter
 ```
 
-Ohne PDFs funktioniert die App trotzdem — die KI generiert dann allgemeine Fragen zum Thema.
+The file name must start with the `pdfPraefix` defined in `lib/lernplan.ts` for the AI to find it. Exam files (containing `Übungsklausur`) are matched automatically by the Probeklausur chapter.
 
-## Deployment (Vercel)
+The app works without PDFs — the AI falls back to general knowledge for the topic.
+
+## Deploy (Vercel)
 
 ```bash
 git push origin main
 ```
 
-Vercel erkennt Next.js automatisch. Umgebungsvariablen unter **Settings → Environment Variables** eintragen — dieselben wie in `.env.local`. `SUPABASE_SERVICE_ROLE_KEY` nur für die _Production_-Umgebung setzen, nicht im Preview.
+Vercel detects Next.js automatically. Add the same environment variables under **Settings → Environment Variables**. Set `SUPABASE_SERVICE_ROLE_KEY` to **Production** only, not Preview.
 
-## Projektstruktur
+## Project structure
 
 ```
 app/
-  page.tsx              # Dashboard (3 Fächer)
-  law/                  # WPR — Falltraining im Gutachtenstil
+  page.tsx              # Dashboard (3 subjects)
+  law/                  # WPR — Gutachtenstil case training
   qm/
     wima/               # Wirtschaftsmathematik
     statistik/          # Statistik
-  lernplan/             # Kapitelübersicht mit Fortschritt
-  login/                # Login, Registrierung, Passwort vergessen
-  auth/reset/           # Passwort zurücksetzen (nach E-Mail-Link)
+  lernplan/             # Chapter overview with progress
+  login/                # Login, signup, forgot password
+  auth/reset/           # Password reset (after email link)
   api/
-    wpr/                # WPR — Quiz, Fall, Korrektur
-    qm/                 # WiMa + Statistik — Quiz, Aufgabe, Korrektur
-    progress/           # XP-Sync mit Supabase
+    wpr/                # WPR — quiz, case, correction
+    qm/                 # WiMa + Statistik — exercise, correction
+    progress/           # XP sync with Supabase
 
 lib/
-  lernplan.ts           # Kapitel-Definitionen für alle drei Fächer
-  UserContext.tsx       # XP, Streak, Fortschritt (localStorage + Supabase)
-  AuthContext.tsx       # Login, Registrierung, Passwort-Reset
-  supabase-client.ts    # Supabase-Client (lazy init, browser)
-  ai-client.ts          # Gemini-Wrapper inkl. Bildanalyse für Fotos
-  pdf-utils.ts          # PDF-Lesefunktionen für die API-Routen
+  lernplan.ts           # Chapter definitions for all three subjects
+  UserContext.tsx       # XP, streak, progress (localStorage + Supabase)
+  AuthContext.tsx       # Login, signup, password reset
+  supabase-client.ts    # Supabase client (lazy init, browser)
+  ai-client.ts          # Gemini wrapper incl. image analysis for photo uploads
+  pdf-utils.ts          # PDF reading for API routes (searches correct subfolder per subject)
 
 components/
-  AppShell.tsx          # Auth-Guard + Layout (Sidebar ein/aus)
-  Sidebar.tsx           # Navigation mit aufklappbarem QM-Bereich
+  AppShell.tsx          # Auth guard + layout (sidebar toggle)
+  Sidebar.tsx           # Navigation with collapsible QM section
   MultipleChoiceQuiz.tsx
-  LoesungsEingabe.tsx   # Eingabe tippen oder Foto hochladen
+  LoesungsEingabe.tsx   # Answer input — type or upload a photo
 ```
 
-## Lizenz
+## License
 
-MIT — mach damit was du willst :D 
+MIT — do whatever you want with it.
