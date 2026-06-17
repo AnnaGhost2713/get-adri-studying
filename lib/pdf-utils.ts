@@ -60,8 +60,18 @@ export async function readPdfsForThema(
   return docs.filter((d): d is ScriptDocument => Boolean(d && d.text));
 }
 
-// Legacy: reads from root scripts dir (used by older routes)
+// Legacy functions used by /api/chat — read from root scripts dir
+export async function listScriptPdfs(): Promise<string[]> {
+  return listPdfsInDir(SCRIPTS_DIR);
+}
+
 export async function readScriptPdf(fileName: string): Promise<ScriptDocument | null> {
   const safeName = path.basename(fileName);
   return readPdfFile(path.join(SCRIPTS_DIR, safeName), safeName);
+}
+
+export async function readAllScriptPdfs(limit = 3): Promise<ScriptDocument[]> {
+  const files = await listScriptPdfs();
+  const docs = await Promise.all(files.slice(0, Math.max(1, limit)).map((f) => readScriptPdf(f)));
+  return docs.filter((d): d is ScriptDocument => Boolean(d && d.text));
 }
