@@ -149,6 +149,14 @@ export const WIMA_THEMEN: Thema[] = [
     sitzungenZumAbschluss: 25,
     pdfPraefix: "3_QM_WiMa_Finanzmathematik",
   },
+  {
+    id: "wima-probeklausur",
+    titel: "Probeklausur",
+    beschreibung: "Gemischte Aufgaben aus allen Themen auf Klausurniveau — basierend auf echten Übungsklausuren",
+    schluesselwoerter: ["Klausur", "alle Themen", "Differentialrechnung", "Integralrechnung", "Finanzmathematik"],
+    sitzungenZumAbschluss: 10,
+    pdfPraefix: "Übungsklausur_QM_WiMa",
+  },
 ];
 
 export const STATISTIK_THEMEN: Thema[] = [
@@ -223,6 +231,14 @@ export const STATISTIK_THEMEN: Thema[] = [
     schluesselwoerter: ["Binomialverteilung", "Normalverteilung", "Standardnormalverteilung", "Poisson", "z-Wert"],
     sitzungenZumAbschluss: 30,
     pdfPraefix: "4_2_QM_Statistik_Verteilungen",
+  },
+  {
+    id: "statistik-probeklausur",
+    titel: "Probeklausur",
+    beschreibung: "Gemischte Aufgaben aus allen Themen auf Klausurniveau — basierend auf echten Übungsklausuren",
+    schluesselwoerter: ["Klausur", "alle Themen", "Lagemaße", "Regression", "Verteilungen", "Zufallsvariablen"],
+    sitzungenZumAbschluss: 10,
+    pdfPraefix: "Übungsklausur_QM_Statistik",
   },
 ];
 

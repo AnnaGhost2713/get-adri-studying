@@ -3,13 +3,12 @@
 import { useMemo, useState } from "react";
 import katex from "katex";
 import "katex/dist/katex.min.css";
-import { Calculator, BookOpen, Trophy, RotateCcw, Loader2, ChevronRight, CheckCircle, XCircle } from "lucide-react";
-import MultipleChoiceQuiz, { MCFrage } from "@/components/MultipleChoiceQuiz";
+import { Calculator, Trophy, RotateCcw, Loader2, ChevronRight, CheckCircle, XCircle } from "lucide-react";
 import LoesungsEingabe from "@/components/LoesungsEingabe";
 import { useUser } from "@/lib/UserContext";
 import { getAktuellesThema } from "@/lib/lernplan";
 
-type Schritt = "start" | "quiz_laden" | "quiz" | "aufgabe_laden" | "aufgabe" | "korrigieren" | "korrektur";
+type Schritt = "start" | "laden" | "aufgabe" | "korrigieren" | "korrektur";
 
 type Aufgabe = {
   aufgabe_text: string;
@@ -51,8 +50,6 @@ export default function WiMaSeite() {
   const aktuellesThema = getAktuellesThema("wima", wimaFortschritt.themaIndex);
 
   const [schritt, setSchritt] = useState<Schritt>("start");
-  const [fragen, setFragen] = useState<MCFrage[]>([]);
-  const [quizScore, setQuizScore] = useState(0);
   const [aktuelleAufgabe, setAktuelleAufgabe] = useState<Aufgabe | null>(null);
   const [loesung, setLoesung] = useState("");
   const [fotoBase64, setFotoBase64] = useState<string | null>(null);
@@ -76,32 +73,11 @@ export default function WiMaSeite() {
     (wimaFortschritt.sitzungenAktuell / aktuellesThema.sitzungenZumAbschluss) * 100
   );
 
-  async function uebungStarten() {
-    setFehler("");
-    setSchritt("quiz_laden");
-    try {
-      const res = await fetch("/api/qm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "quiz",
-          subfach: "wima",
-          thema: aktuellesThema.titel,
-          pdfPraefix: aktuellesThema.pdfPraefix,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      ladeAufgabe();
-      setFragen(data.questions as MCFrage[]);
-      setSchritt("quiz");
-    } catch (e) {
-      setFehler(e instanceof Error ? e.message : "Fehler beim Laden");
-      setSchritt("start");
-    }
-  }
+  const istProbeklausur = aktuellesThema.titel === "Probeklausur";
 
-  async function ladeAufgabe() {
+  async function aufgabeStarten() {
+    setFehler("");
+    setSchritt("laden");
     try {
       const res = await fetch("/api/qm", {
         method: "POST",
@@ -114,38 +90,15 @@ export default function WiMaSeite() {
         }),
       });
       const data = await res.json();
-      if (res.ok) setAktuelleAufgabe(data as Aufgabe);
-    } catch {
-      // wird beim Quiz-Abschluss erneut versucht
+      if (!res.ok) throw new Error(data.error);
+      setAktuelleAufgabe(data as Aufgabe);
+      setLoesung("");
+      setHinweiseSichtbar(false);
+      setSchritt("aufgabe");
+    } catch (e) {
+      setFehler(e instanceof Error ? e.message : "Fehler beim Laden");
+      setSchritt("start");
     }
-  }
-
-  async function quizAbgeschlossen(score: number) {
-    setQuizScore(score);
-    if (!aktuelleAufgabe) {
-      setSchritt("aufgabe_laden");
-      try {
-        const res = await fetch("/api/qm", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "aufgabe",
-            subfach: "wima",
-            thema: aktuellesThema.titel,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
-        setAktuelleAufgabe(data as Aufgabe);
-      } catch (e) {
-        setFehler(e instanceof Error ? e.message : "Fehler beim Laden der Aufgabe");
-        setSchritt("start");
-        return;
-      }
-    }
-    setLoesung("");
-    setHinweiseSichtbar(false);
-    setSchritt("aufgabe");
   }
 
   async function loesungAbgeben() {
@@ -170,9 +123,8 @@ export default function WiMaSeite() {
       const k = data as Korrektur;
       setKorrektur(k);
 
-      const quizBonus = Math.round((quizScore / Math.max(fragen.length, 1)) * 10);
-      const loesungsBonus = Math.round((k.punkte / 100) * 20);
-      const gesamt = 15 + quizBonus + loesungsBonus;
+      const loesungsBonus = Math.round((k.punkte / 100) * 30);
+      const gesamt = 15 + loesungsBonus;
       setVerdienteXP(gesamt);
       addXP(gesamt);
       sitzungAbgeschlossen("wima");
@@ -185,8 +137,6 @@ export default function WiMaSeite() {
 
   function neueUebung() {
     setSchritt("start");
-    setFragen([]);
-    setQuizScore(0);
     setAktuelleAufgabe(null);
     setLoesung("");
     setFotoBase64(null);
@@ -212,7 +162,7 @@ export default function WiMaSeite() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-emerald-500 font-medium uppercase tracking-wide">
-              Aktuelles Thema · Kapitel {wimaFortschritt.themaIndex + 1}
+              {istProbeklausur ? "Abschluss" : `Kapitel ${wimaFortschritt.themaIndex + 1}`}
             </p>
             <p className="font-semibold text-emerald-900">{aktuellesThema.titel}</p>
             <p className="text-xs text-emerald-600 mt-0.5">{aktuellesThema.beschreibung}</p>
@@ -225,7 +175,7 @@ export default function WiMaSeite() {
         <div className="w-full bg-emerald-200 rounded-full h-1.5">
           <div
             className="bg-emerald-600 h-1.5 rounded-full transition-all"
-            style={{ width: `${fortschrittProzent}%` }}
+            style={{ width: `${Math.min(fortschrittProzent, 100)}%` }}
           />
         </div>
         <div className="flex flex-wrap gap-1">
@@ -243,43 +193,29 @@ export default function WiMaSeite() {
 
       {schritt === "start" && (
         <div className="rounded-2xl bg-white border border-slate-200 p-8 text-center space-y-4">
-          <div className="text-5xl">📐</div>
-          <h2 className="text-xl font-semibold text-slate-800">Bereit für eine WiMa-Übung?</h2>
+          <div className="text-5xl">{istProbeklausur ? "📋" : "📐"}</div>
+          <h2 className="text-xl font-semibold text-slate-800">
+            {istProbeklausur ? "Bereit für die Probeklausur?" : "Bereit für eine WiMa-Aufgabe?"}
+          </h2>
           <p className="text-slate-500 text-sm max-w-sm mx-auto">
-            Heute: <strong>{aktuellesThema.titel}</strong>. Zuerst Theorie-Check, dann eine Aufgabe mit KI-Korrektur.
+            {istProbeklausur
+              ? "Klausur-ähnliche Aufgaben mit mehreren Teilaufgaben aus allen Themen — basierend auf echten Übungsklausuren."
+              : <><strong>{aktuellesThema.titel}</strong> — KI generiert eine Rechenaufgabe, du löst sie, KI korrigiert.</>
+            }
           </p>
-          <div className="flex items-center justify-center gap-6 text-xs text-slate-400 pt-2">
-            <span className="flex items-center gap-1"><BookOpen className="w-3.5 h-3.5" /> Wissenscheck</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-            <span className="flex items-center gap-1"><Calculator className="w-3.5 h-3.5" /> Aufgabe lösen</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-            <span className="flex items-center gap-1"><Trophy className="w-3.5 h-3.5" /> XP verdienen</span>
-          </div>
           <button
-            onClick={uebungStarten}
+            onClick={aufgabeStarten}
             className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-colors"
           >
-            Übung starten <ChevronRight className="w-4 h-4" />
+            {istProbeklausur ? "Aufgabe generieren" : "Aufgabe starten"} <ChevronRight className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      {(schritt === "quiz_laden" || schritt === "aufgabe_laden") && (
+      {schritt === "laden" && (
         <div className="rounded-2xl bg-white border border-slate-200 p-8 text-center space-y-3">
           <Loader2 className="w-8 h-8 text-emerald-500 animate-spin mx-auto" />
-          <p className="text-slate-600">
-            {schritt === "quiz_laden" ? "Quiz wird generiert..." : "Aufgabe wird geladen..."}
-          </p>
-        </div>
-      )}
-
-      {schritt === "quiz" && fragen.length > 0 && (
-        <div className="rounded-2xl bg-white border border-slate-200 p-6 space-y-4">
-          <div className="flex items-center gap-2 text-emerald-700 font-semibold">
-            <BookOpen className="w-4 h-4" />
-            Wissenscheck: {aktuellesThema.titel}
-          </div>
-          <MultipleChoiceQuiz fragen={fragen} onAbgeschlossen={quizAbgeschlossen} />
+          <p className="text-slate-600">Aufgabe wird generiert...</p>
         </div>
       )}
 
@@ -300,7 +236,7 @@ export default function WiMaSeite() {
             {aktuelleAufgabe.aufgabe_latex ? (
               <div className="text-slate-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: aufgabeHTML }} />
             ) : (
-              <p className="text-slate-700 leading-relaxed">{aktuelleAufgabe.aufgabe_text}</p>
+              <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{aktuelleAufgabe.aufgabe_text}</p>
             )}
             {aktuelleAufgabe.hinweise?.length > 0 && (
               <div>
@@ -392,9 +328,7 @@ export default function WiMaSeite() {
           <div className="rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 p-6 text-white text-center space-y-2">
             <Trophy className="w-8 h-8 mx-auto text-yellow-300" />
             <p className="font-bold text-xl">+{verdienteXP} XP verdient!</p>
-            <p className="text-emerald-100 text-sm">
-              Quiz: {quizScore}/{fragen.length} richtig · Aufgabe: {korrektur.punkte}/100 Punkte
-            </p>
+            <p className="text-emerald-100 text-sm">Aufgabe: {korrektur.punkte}/100 Punkte</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <button

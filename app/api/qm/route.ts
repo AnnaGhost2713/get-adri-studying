@@ -61,14 +61,24 @@ Antworte NUR mit diesem JSON-Format, ohne weiteren Text:
       const schwierigkeit = (body.schwierigkeit as string) || "mittel";
       const source = await getSourceText(subfach, pdfPraefix);
       const sourceHint = source ? `Nutze dieses Lernmaterial als Grundlage:\n\n${source}\n\n` : "";
-      const themaHint = thema ? `Thema: "${thema}"\n` : "";
+      const istProbeklausur = thema === "Probeklausur";
 
-      const aufgabeInstr = subfach === "wima"
-        ? `Die Aufgabe soll:
-- Einen klaren mathematischen Rechenweg haben
-- Formeln und Berechnungen erfordern
-- Wenn möglich, wirtschaftliche Anwendungsbezüge haben
-- Mit LaTeX-Formeln dargestellt werden ($ für inline, $$ für Display-Modus)
+      const aufgabeInstr = istProbeklausur
+        ? `Generiere eine klausurtypische Aufgabe, die mehrere Themen aus ${fachLabel} kombiniert (wie in einer echten Abschlussprüfung).
+Die Aufgabe soll mehrere Teilaufgaben (a, b, c ...) haben, verschiedene Themen abdecken und anspruchsvoll aber lösbar sein.
+Nutze LaTeX-Formeln ($ für inline, $$ für Display-Modus).
+
+Antworte NUR mit diesem JSON-Format:
+{
+  "aufgabe_text": "Vollständige Klausuraufgabe mit allen Teilaufgaben als normaler Text...",
+  "aufgabe_latex": "Dieselbe Aufgabe mit LaTeX-Formeln...",
+  "thema": "Gemischte Klausuraufgabe",
+  "schwierigkeit": "anspruchsvoll",
+  "hinweise": ["Tipp zu Teilaufgabe a", "Tipp zu Teilaufgabe b"]
+}`
+        : subfach === "wima"
+        ? `Die Aufgabe soll einen klaren mathematischen Rechenweg haben, Formeln erfordern und wenn möglich wirtschaftliche Bezüge haben.
+Nutze LaTeX-Formeln ($ für inline, $$ für Display-Modus).
 
 Antworte NUR mit diesem JSON-Format:
 {
@@ -78,25 +88,20 @@ Antworte NUR mit diesem JSON-Format:
   "schwierigkeit": "mittel",
   "hinweise": ["Hinweis 1", "Hinweis 2"]
 }`
-        : `Die Aufgabe soll:
-- Konkrete Datenwerte oder Szenarien enthalten
-- Statistische Kennzahlen berechnen lassen
-- Einen klaren Lösungsweg haben
-- Für Wirtschaftsstudenten relevant sein
-- Formeln mit LaTeX darstellen ($ für inline wie $\\bar{x}$, $$ für Display-Modus)
+        : `Die Aufgabe soll konkrete Datenwerte enthalten, statistische Kennzahlen berechnen lassen und einen klaren Lösungsweg haben.
+Nutze LaTeX für Symbole ($ für inline wie $\\bar{x}$, $s^2$, $\\sigma$, $$ für Display-Modus).
 
 Antworte NUR mit diesem JSON-Format:
 {
   "aufgabe_text": "Die vollständige Aufgabe als normaler Text, inkl. aller Daten...",
-  "aufgabe_latex": "Die Aufgabe mit LaTeX-Formeln für Symbole wie $\\bar{x}$, $s^2$, $\\sigma$ usw.",
+  "aufgabe_latex": "Die Aufgabe mit LaTeX-Formeln...",
   "thema": "z.B. Lagemaße",
   "schwierigkeit": "mittel",
   "hinweise": ["Hinweis 1", "Hinweis 2"]
 }`;
 
-      const prompt = `${sourceHint}${themaHint}Du bist ein ${fachLabel}-Tutor. Generiere eine ${schwierigkeit}schwere Übungsaufgabe${thema ? ` zum Thema "${thema}"` : ""} auf Deutsch.
-
-${aufgabeInstr}`;
+      const themaHint = !istProbeklausur && thema ? `Thema: "${thema}"\n` : "";
+      const prompt = `${sourceHint}${themaHint}Du bist ein ${fachLabel}-Tutor. Generiere eine ${istProbeklausur ? "klausurtypische" : `${schwierigkeit}schwere`} Übungsaufgabe auf Deutsch.\n\n${aufgabeInstr}`;
       const raw = await callGemini(prompt);
       const data = extractJSON<Record<string, unknown>>(raw);
       return NextResponse.json(data);
