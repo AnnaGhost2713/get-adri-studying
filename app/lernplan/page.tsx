@@ -24,12 +24,66 @@ function ThemaKarte({
   status: ThemaStatus;
   sitzungenAktuell: number;
 }) {
+  const isProbeklausur = thema.id.includes("probeklausur");
   const fortschrittProzent =
     status === "abgeschlossen"
       ? 100
       : status === "aktuell"
       ? Math.round((sitzungenAktuell / thema.sitzungenZumAbschluss) * 100)
       : 0;
+
+  if (isProbeklausur) {
+    return (
+      <div
+        className={`rounded-xl border-2 p-4 space-y-2 transition-all ${
+          status === "abgeschlossen"
+            ? "bg-yellow-50 border-yellow-300"
+            : status === "aktuell"
+            ? "bg-gradient-to-r from-amber-50 to-orange-50 border-amber-300 shadow-sm"
+            : "bg-slate-50 border-dashed border-slate-300 opacity-60"
+        }`}
+      >
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5 shrink-0 text-lg">
+            {status === "abgeschlossen" ? "✅" : status === "aktuell" ? "📋" : "🔒"}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-slate-400 font-mono">{String(index + 1).padStart(2, "0")}</span>
+              <h3 className={`font-bold text-sm ${status === "gesperrt" ? "text-slate-400" : "text-amber-800"}`}>
+                {thema.titel}
+              </h3>
+              {status === "aktuell" && (
+                <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">Finale Prüfung</span>
+              )}
+              {status === "gesperrt" && (
+                <span className="text-xs text-slate-400 px-1.5 py-0.5">— alle Kapitel abschließen</span>
+              )}
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">{thema.beschreibung}</p>
+            {status !== "gesperrt" && (
+              <div className="mt-2 space-y-1">
+                <div className="flex justify-between text-xs text-slate-500">
+                  <span>
+                    {status === "abgeschlossen"
+                      ? "Abgeschlossen"
+                      : `${sitzungenAktuell} / ${thema.sitzungenZumAbschluss} Übungen`}
+                  </span>
+                  <span>{fortschrittProzent}%</span>
+                </div>
+                <div className="w-full bg-amber-200 rounded-full h-1.5">
+                  <div
+                    className="h-1.5 rounded-full transition-all bg-amber-500"
+                    style={{ width: `${fortschrittProzent}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -62,7 +116,6 @@ function ThemaKarte({
             )}
           </div>
           <p className="text-xs text-slate-500 mt-0.5">{thema.beschreibung}</p>
-
           {status !== "gesperrt" && (
             <div className="mt-2 space-y-1">
               <div className="flex justify-between text-xs text-slate-500">
