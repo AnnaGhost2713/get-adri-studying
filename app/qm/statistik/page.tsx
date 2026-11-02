@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import katex from "katex";
 import "katex/dist/katex.min.css";
 import { BarChart2, Trophy, RotateCcw, Loader2, ChevronRight, CheckCircle, XCircle } from "lucide-react";
 import LoesungsEingabe from "@/components/LoesungsEingabe";
 import { useUser } from "@/lib/UserContext";
-import { getAktuellesThema } from "@/lib/lernplan";
+import { getAktuellesThema, getThemaById } from "@/lib/lernplan";
 
 type Schritt = "start" | "laden" | "aufgabe" | "korrigieren" | "korrektur";
 
@@ -46,8 +47,14 @@ type Korrektur = {
 };
 
 export default function StatistikSeite() {
-  const { addXP, sitzungAbgeschlossen, statistikFortschritt } = useUser();
-  const aktuellesThema = getAktuellesThema("statistik", statistikFortschritt.themaIndex);
+  const { addXP, sitzungAbgeschlossen, lernversuchSpeichern, fehlerbuch, statistikFortschritt } = useUser();
+  const searchParams = useSearchParams();
+  const wiederholungsThema = getThemaById("statistik", searchParams.get("review"));
+  const aktuellesThema = wiederholungsThema ?? getAktuellesThema("statistik", statistikFortschritt.themaIndex);
+  const istWiederholung = Boolean(wiederholungsThema);
+  const wiederholungsEintrag = fehlerbuch.find(
+    (eintrag) => eintrag.fach === "statistik" && eintrag.themaId === wiederholungsThema?.id
+  );
 
   const [schritt, setSchritt] = useState<Schritt>("start");
   const [aktuelleAufgabe, setAktuelleAufgabe] = useState<Aufgabe | null>(null);
@@ -87,6 +94,7 @@ export default function StatistikSeite() {
           subfach: "statistik",
           thema: aktuellesThema.titel,
           pdfPraefix: aktuellesThema.pdfPraefix,
+          reviewFocus: wiederholungsEintrag?.fehler,
         }),
       });
       const data = await res.json();
@@ -127,7 +135,17 @@ export default function StatistikSeite() {
       const gesamt = 15 + loesungsBonus;
       setVerdienteXP(gesamt);
       addXP(gesamt);
-      sitzungAbgeschlossen("statistik");
+      sitzungAbgeschlossen("statistik", !istWiederholung);
+      lernversuchSpeichern({
+        fach: "statistik",
+        themaId: aktuellesThema.id,
+        themaTitel: aktuellesThema.titel,
+        punkte: k.punkte,
+        fehler: k.fehler?.length ? k.fehler : k.punkte < 85 ? [k.feedback] : [],
+        feedback: k.feedback,
+        aufgabe: aktuelleAufgabe.aufgabe_text,
+        istWiederholung,
+      });
       setSchritt("korrektur");
     } catch (e) {
       setFehler(e instanceof Error ? e.message : "Fehler bei der Korrektur");
@@ -162,7 +180,7 @@ export default function StatistikSeite() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-violet-500 font-medium uppercase tracking-wide">
-              {istProbeklausur ? "Abschluss" : `Kapitel ${statistikFortschritt.themaIndex + 1}`}
+              {istWiederholung ? "Adaptive Wiederholung" : istProbeklausur ? "Abschluss" : `Kapitel ${statistikFortschritt.themaIndex + 1}`}
             </p>
             <p className="font-semibold text-violet-900">{aktuellesThema.titel}</p>
             <p className="text-xs text-violet-600 mt-0.5">{aktuellesThema.beschreibung}</p>

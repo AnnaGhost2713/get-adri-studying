@@ -3,11 +3,45 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { addXP as addXPUtil, LEVEL_XP } from "@/lib/gamification";
 import { WPR_THEMEN, WIMA_THEMEN, STATISTIK_THEMEN } from "@/lib/lernplan";
+import { useAuth } from "@/lib/AuthContext";
 
 type ThemaFortschritt = {
   themaIndex: number;
   sitzungenAktuell: number;
 };
+
+export type Lernfach = "wpr" | "wima" | "statistik";
+
+export type Lernversuch = {
+  id: string;
+  fach: Lernfach;
+  themaId: string;
+  themaTitel: string;
+  punkte: number;
+  fehler: string[];
+  feedback: string;
+  aufgabe: string;
+  istWiederholung: boolean;
+  erstelltAm: string;
+};
+
+export type FehlerbuchEintrag = {
+  id: string;
+  fach: Lernfach;
+  themaId: string;
+  themaTitel: string;
+  letztePunktzahl: number;
+  mastery: number;
+  fehler: string[];
+  feedback: string;
+  versuche: number;
+  erfolgreicheWiederholungen: number;
+  zuletztGeuebtAm: string;
+  naechsteWiederholungAm: string;
+  gemeistert: boolean;
+};
+
+export type LernversuchEingabe = Omit<Lernversuch, "id" | "erstelltAm">;
 
 type UserContextType = {
   xp: number;
@@ -16,9 +50,12 @@ type UserContextType = {
   wprFortschritt: ThemaFortschritt;
   wimaFortschritt: ThemaFortschritt;
   statistikFortschritt: ThemaFortschritt;
+  lernversuche: Lernversuch[];
+  fehlerbuch: FehlerbuchEintrag[];
   addXP: (amount: number) => void;
-  sitzungAbgeschlossen: (fach: "wpr" | "wima" | "statistik") => void;
-  themaAendern: (fach: "wpr" | "wima" | "statistik", index: number) => void;
+  sitzungAbgeschlossen: (fach: Lernfach, zaehltZumKapitel?: boolean) => void;
+  themaAendern: (fach: Lernfach, index: number) => void;
+  lernversuchSpeichern: (versuch: LernversuchEingabe) => void;
   setStreak: (s: number) => void;
 };
 
@@ -26,6 +63,7 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 
 const STORAGE_KEY = "exam-slayer:user";
 const USER_ID_KEY = "exam-slayer:user-id";
+const REVIEW_INTERVALLE = [0, 1, 3, 7, 14, 30];
 
 function resolveUserId(): string {
   try {
@@ -55,17 +93,67 @@ function berechneStreak(letzterAktivTag: string | undefined, aktuellerStreak: nu
   return 0;
 }
 
+function datumInTagen(tage: number): string {
+  const datum = new Date();
+  datum.setDate(datum.getDate() + tage);
+  return datum.toISOString();
+}
+
+function aktualisiereFehlerbuch(
+  eintraege: FehlerbuchEintrag[],
+  versuch: Lernversuch
+): FehlerbuchEintrag[] {
+  const index = eintraege.findIndex(
+    (eintrag) => eintrag.fach === versuch.fach && eintrag.themaId === versuch.themaId
+  );
+  const vorhanden = index >= 0 ? eintraege[index] : null;
+  const sollGespeichertWerden = Boolean(vorhanden) || versuch.punkte < 85 || versuch.fehler.length > 0;
+
+  if (!sollGespeichertWerden) return eintraege;
+
+  const bestanden = versuch.punkte >= 75;
+  const wiederholungen = bestanden ? (vorhanden?.erfolgreicheWiederholungen ?? 0) + 1 : 0;
+  const mastery = vorhanden
+    ? Math.round(vorhanden.mastery * 0.4 + versuch.punkte * 0.6)
+    : versuch.punkte;
+  const intervall = bestanden
+    ? REVIEW_INTERVALLE[Math.min(wiederholungen, REVIEW_INTERVALLE.length - 1)]
+    : 0;
+  const fehler = versuch.fehler.length > 0 ? versuch.fehler : vorhanden?.fehler ?? [];
+  const eintrag: FehlerbuchEintrag = {
+    id: vorhanden?.id ?? `${versuch.fach}:${versuch.themaId}`,
+    fach: versuch.fach,
+    themaId: versuch.themaId,
+    themaTitel: versuch.themaTitel,
+    letztePunktzahl: versuch.punkte,
+    mastery,
+    fehler,
+    feedback: versuch.feedback || vorhanden?.feedback || "",
+    versuche: (vorhanden?.versuche ?? 0) + 1,
+    erfolgreicheWiederholungen: wiederholungen,
+    zuletztGeuebtAm: versuch.erstelltAm,
+    naechsteWiederholungAm: datumInTagen(intervall),
+    gemeistert: wiederholungen >= 3 && mastery >= 80,
+  };
+
+  if (index < 0) return [eintrag, ...eintraege];
+  return eintraege.map((alt, i) => (i === index ? eintrag : alt));
+}
+
 export function UserProvider({ children }: { children: React.ReactNode }) {
+  const { user, session } = useAuth();
   const [xp, setXp] = useState<number>(0);
   const [streak, setStreakState] = useState<number>(0);
   const [userId, setUserId] = useState<string>("");
   const [wprFortschritt, setWprFortschritt] = useState<ThemaFortschritt>({ themaIndex: 0, sitzungenAktuell: 0 });
   const [wimaFortschritt, setWimaFortschritt] = useState<ThemaFortschritt>({ themaIndex: 0, sitzungenAktuell: 0 });
   const [statistikFortschritt, setStatistikFortschritt] = useState<ThemaFortschritt>({ themaIndex: 0, sitzungenAktuell: 0 });
+  const [lernversuche, setLernversuche] = useState<Lernversuch[]>([]);
+  const [fehlerbuch, setFehlerbuch] = useState<FehlerbuchEintrag[]>([]);
 
   useEffect(() => {
     try {
-      const id = resolveUserId();
+      const id = user?.id ?? resolveUserId();
       setUserId(id);
 
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -78,6 +166,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         // migrate old "matheFortschritt" key → wimaFortschritt
         setWimaFortschritt(parsed.wimaFortschritt ?? parsed.matheFortschritt ?? { themaIndex: 0, sitzungenAktuell: 0 });
         setStatistikFortschritt(parsed.statistikFortschritt ?? { themaIndex: 0, sitzungenAktuell: 0 });
+        setLernversuche(parsed.lernversuche ?? []);
+        setFehlerbuch(parsed.fehlerbuch ?? []);
       }
 
       fetch(`/api/progress?userId=${encodeURIComponent(id)}`)
@@ -90,10 +180,22 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           }
         })
         .catch(() => {});
+
+      if (session?.access_token) {
+        fetch("/api/review", {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        })
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => {
+            if (data?.lernversuche?.length) setLernversuche(data.lernversuche);
+            if (data?.fehlerbuch?.length) setFehlerbuch(data.fehlerbuch);
+          })
+          .catch(() => {});
+      }
     } catch {
       // localStorage nicht verfügbar
     }
-  }, []);
+  }, [session?.access_token, user?.id]);
 
   useEffect(() => {
     try {
@@ -111,6 +213,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           wprFortschritt,
           wimaFortschritt,
           statistikFortschritt,
+          lernversuche,
+          fehlerbuch,
         })
       );
 
@@ -124,14 +228,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore
     }
-  }, [xp, streak, wprFortschritt, wimaFortschritt, statistikFortschritt, userId]);
+  }, [xp, streak, wprFortschritt, wimaFortschritt, statistikFortschritt, lernversuche, fehlerbuch, userId]);
 
   function addXP(amount: number) {
     const { xp: newXp } = addXPUtil(xp, amount);
     setXp(newXp);
   }
 
-  function sitzungAbgeschlossen(fach: "wpr" | "wima" | "statistik") {
+  function sitzungAbgeschlossen(fach: Lernfach, zaehltZumKapitel = true) {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       const prev = raw ? JSON.parse(raw) : {};
@@ -148,6 +252,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore
     }
+
+    if (!zaehltZumKapitel) return;
 
     if (fach === "wpr") {
       setWprFortschritt((prev) => {
@@ -179,13 +285,35 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  function themaAendern(fach: "wpr" | "wima" | "statistik", index: number) {
+  function themaAendern(fach: Lernfach, index: number) {
     if (fach === "wpr") {
       setWprFortschritt({ themaIndex: Math.min(index, WPR_THEMEN.length - 1), sitzungenAktuell: 0 });
     } else if (fach === "wima") {
       setWimaFortschritt({ themaIndex: Math.min(index, WIMA_THEMEN.length - 1), sitzungenAktuell: 0 });
     } else {
       setStatistikFortschritt({ themaIndex: Math.min(index, STATISTIK_THEMEN.length - 1), sitzungenAktuell: 0 });
+    }
+  }
+
+  function lernversuchSpeichern(eingabe: LernversuchEingabe) {
+    const versuch: Lernversuch = {
+      ...eingabe,
+      id: crypto.randomUUID(),
+      erstelltAm: new Date().toISOString(),
+    };
+
+    setLernversuche((aktuell) => [versuch, ...aktuell].slice(0, 100));
+    setFehlerbuch((aktuell) => aktualisiereFehlerbuch(aktuell, versuch));
+
+    if (session?.access_token) {
+      fetch("/api/review", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(versuch),
+      }).catch(() => {});
     }
   }
 
@@ -200,9 +328,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         wprFortschritt,
         wimaFortschritt,
         statistikFortschritt,
+        lernversuche,
+        fehlerbuch,
         addXP,
         sitzungAbgeschlossen,
         themaAendern,
+        lernversuchSpeichern,
         setStreak: setStreakState,
       }}
     >

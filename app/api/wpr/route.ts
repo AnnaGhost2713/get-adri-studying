@@ -19,12 +19,18 @@ export async function POST(req: NextRequest) {
     const action = body.action as WPRAction;
     const thema = (body.thema as string) || "";
     const pdfPraefix = (body.pdfPraefix as string) || "wpr";
+    const reviewFocus = Array.isArray(body.reviewFocus)
+      ? (body.reviewFocus as string[]).filter((fehler) => typeof fehler === "string").slice(0, 5)
+      : [];
+    const reviewHint = reviewFocus.length
+      ? `Dies ist eine adaptive Wiederholung. Erstelle die Aufgabe so, dass besonders diese bisherigen Schwächen geprüft werden:\n- ${reviewFocus.join("\n- ")}\n`
+      : "";
 
     if (action === "quiz") {
       const source = await getSourceText(pdfPraefix);
       const sourceHint = source ? `Nutze dieses Lernmaterial als Grundlage:\n\n${source}\n\n` : "";
       const themaHint = thema ? `Fokus auf das Thema: "${thema}"\n` : "";
-      const prompt = `${sourceHint}${themaHint}Du bist ein WPR-Lernassistent für Wirtschaftsprivatrecht (BGB). Generiere 4 Multiple-Choice-Fragen auf Deutsch${thema ? ` speziell zum Thema "${thema}"` : " zu wichtigen BGB-Themen"}.
+      const prompt = `${sourceHint}${themaHint}${reviewHint}Du bist ein WPR-Lernassistent für Wirtschaftsprivatrecht (BGB). Generiere 4 Multiple-Choice-Fragen auf Deutsch${thema ? ` speziell zum Thema "${thema}"` : " zu wichtigen BGB-Themen"}.
 
 Die Fragen sollen unterschiedlich schwer sein: 1x einfach, 2x mittel, 1x anspruchsvoll.
 
@@ -51,7 +57,7 @@ Antworte NUR mit diesem JSON-Format, ohne weiteren Text:
       const themaHint = thema
         ? `Thema: "${thema}"${schluesselwoerter.length ? ` (relevante Begriffe: ${schluesselwoerter.join(", ")})` : ""}\n`
         : "";
-      const prompt = `${sourceHint}${themaHint}Du bist ein WPR-Lernassistent. Generiere einen realistischen Übungsfall für Wirtschaftsprivatrecht (BGB) auf Deutsch${thema ? ` zum Thema "${thema}"` : ""}.
+      const prompt = `${sourceHint}${themaHint}${reviewHint}Du bist ein WPR-Lernassistent. Generiere einen realistischen Übungsfall für Wirtschaftsprivatrecht (BGB) auf Deutsch${thema ? ` zum Thema "${thema}"` : ""}.
 
 Der Fall soll:
 - Einen klaren Sachverhalt haben (4-6 Sätze)

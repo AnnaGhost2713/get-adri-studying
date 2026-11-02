@@ -252,3 +252,8 @@ export function getAktuellesThema(fach: Fach, index: number): Thema {
   const themen = getThemen(fach);
   return themen[Math.min(index, themen.length - 1)];
 }
+
+export function getThemaById(fach: Fach, id: string | null): Thema | undefined {
+  if (!id) return undefined;
+  return getThemen(fach).find((thema) => thema.id === id);
+}

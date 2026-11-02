@@ -34,3 +34,41 @@ create table if not exists public.session_history (
 
 create index if not exists idx_session_history_user_id on public.session_history(user_id);
 create index if not exists idx_session_history_fach on public.session_history(fach);
+
+create table if not exists public.learning_attempts (
+  id uuid primary key,
+  user_id text not null,
+  fach text not null check (fach in ('wpr', 'wima', 'statistik')),
+  thema_id text not null,
+  thema_titel text not null,
+  punkte integer not null check (punkte between 0 and 100),
+  fehler jsonb not null default '[]'::jsonb,
+  feedback text not null default '',
+  aufgabe text not null default '',
+  ist_wiederholung boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_learning_attempts_user_created
+  on public.learning_attempts(user_id, created_at desc);
+
+create table if not exists public.review_items (
+  id uuid primary key default gen_random_uuid(),
+  user_id text not null,
+  fach text not null check (fach in ('wpr', 'wima', 'statistik')),
+  thema_id text not null,
+  thema_titel text not null,
+  letzte_punktzahl integer not null check (letzte_punktzahl between 0 and 100),
+  mastery integer not null check (mastery between 0 and 100),
+  fehler jsonb not null default '[]'::jsonb,
+  feedback text not null default '',
+  versuche integer not null default 1,
+  erfolgreiche_wiederholungen integer not null default 0,
+  zuletzt_geuebt_am timestamptz not null default now(),
+  next_review_at timestamptz not null default now(),
+  gemeistert boolean not null default false,
+  unique (user_id, fach, thema_id)
+);
+
+create index if not exists idx_review_items_user_due
+  on public.review_items(user_id, gemeistert, next_review_at);
