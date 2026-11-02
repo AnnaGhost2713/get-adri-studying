@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Star, Flame, Scale, Calculator, Home, Map, ChevronDown, ChevronRight, BarChart2, LogOut } from "lucide-react";
+import { Star, Flame, Scale, Calculator, Home, Map, ChevronDown, ChevronRight, BarChart2, LogOut, Brain } from "lucide-react";
 import { useUser } from "@/lib/UserContext";
 import { useAuth } from "@/lib/AuthContext";
 
@@ -77,6 +77,7 @@ export default function Sidebar() {
           )}
         </div>
 
+        <NavLink href="/fehlerbuch" icon={<Brain className="w-4 h-4" />} label="Fehlerbuch" />
         <NavLink href="/lernplan" icon={<Map className="w-4 h-4" />} label="Lernplan" />
       </nav>
 

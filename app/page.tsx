@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Scale, Calculator, BarChart2, Flame, Star, ChevronRight, Trophy, BookOpen } from "lucide-react";
+import { Scale, Calculator, BarChart2, Flame, Star, ChevronRight, Trophy, BookOpen, Brain } from "lucide-react";
 import { useUser } from "@/lib/UserContext";
 import { getAktuellesThema } from "@/lib/lernplan";
 
@@ -85,7 +85,10 @@ function HeutigeAufgabeKarte({
 }
 
 export default function Dashboard() {
-  const { xp, streak, level, wprFortschritt, wimaFortschritt, statistikFortschritt } = useUser();
+  const { xp, streak, level, wprFortschritt, wimaFortschritt, statistikFortschritt, fehlerbuch } = useUser();
+  const faelligeWiederholungen = fehlerbuch.filter(
+    (eintrag) => !eintrag.gemeistert && new Date(eintrag.naechsteWiederholungAm).getTime() <= Date.now()
+  ).length;
   const xpBisNaechstesLevel = 500 - (xp % 500);
   const fortschrittProzent = Math.min(100, Math.floor(((xp % 500) / 500) * 100));
 
@@ -139,6 +142,24 @@ export default function Dashboard() {
           <div className="text-xs text-slate-500">Level</div>
         </div>
       </div>
+
+      {faelligeWiederholungen > 0 && (
+        <Link
+          href="/fehlerbuch"
+          className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 hover:bg-amber-100 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <Brain className="w-5 h-5 text-amber-600 shrink-0" />
+            <div>
+              <p className="font-semibold text-sm text-amber-900">
+                {faelligeWiederholungen} {faelligeWiederholungen === 1 ? "Thema" : "Themen"} zur Wiederholung fällig
+              </p>
+              <p className="text-xs text-amber-700">Schließe deine Wissenslücken, bevor sie sich festsetzen.</p>
+            </div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-amber-600 shrink-0" />
+        </Link>
+      )}
 
       {/* Heute üben */}
       <div>

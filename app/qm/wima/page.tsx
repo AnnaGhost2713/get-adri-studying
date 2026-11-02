@@ -1,12 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import katex from "katex";
 import "katex/dist/katex.min.css";
 import { Calculator, Trophy, RotateCcw, Loader2, ChevronRight, CheckCircle, XCircle } from "lucide-react";
 import LoesungsEingabe from "@/components/LoesungsEingabe";
 import { useUser } from "@/lib/UserContext";
-import { getAktuellesThema } from "@/lib/lernplan";
+import { getAktuellesThema, getThemaById } from "@/lib/lernplan";
 
 type Schritt = "start" | "laden" | "aufgabe" | "korrigieren" | "korrektur";
 
@@ -46,8 +47,14 @@ function renderLatex(text: string): string {
 }
 
 export default function WiMaSeite() {
-  const { addXP, sitzungAbgeschlossen, wimaFortschritt } = useUser();
-  const aktuellesThema = getAktuellesThema("wima", wimaFortschritt.themaIndex);
+  const { addXP, sitzungAbgeschlossen, lernversuchSpeichern, fehlerbuch, wimaFortschritt } = useUser();
+  const searchParams = useSearchParams();
+  const wiederholungsThema = getThemaById("wima", searchParams.get("review"));
+  const aktuellesThema = wiederholungsThema ?? getAktuellesThema("wima", wimaFortschritt.themaIndex);
+  const istWiederholung = Boolean(wiederholungsThema);
+  const wiederholungsEintrag = fehlerbuch.find(
+    (eintrag) => eintrag.fach === "wima" && eintrag.themaId === wiederholungsThema?.id
+  );
 
   const [schritt, setSchritt] = useState<Schritt>("start");
   const [aktuelleAufgabe, setAktuelleAufgabe] = useState<Aufgabe | null>(null);
@@ -87,6 +94,7 @@ export default function WiMaSeite() {
           subfach: "wima",
           thema: aktuellesThema.titel,
           pdfPraefix: aktuellesThema.pdfPraefix,
+          reviewFocus: wiederholungsEintrag?.fehler,
         }),
       });
       const data = await res.json();
@@ -127,7 +135,17 @@ export default function WiMaSeite() {
       const gesamt = 15 + loesungsBonus;
       setVerdienteXP(gesamt);
       addXP(gesamt);
-      sitzungAbgeschlossen("wima");
+      sitzungAbgeschlossen("wima", !istWiederholung);
+      lernversuchSpeichern({
+        fach: "wima",
+        themaId: aktuellesThema.id,
+        themaTitel: aktuellesThema.titel,
+        punkte: k.punkte,
+        fehler: k.fehler?.length ? k.fehler : k.punkte < 85 ? [k.feedback] : [],
+        feedback: k.feedback,
+        aufgabe: aktuelleAufgabe.aufgabe_text,
+        istWiederholung,
+      });
       setSchritt("korrektur");
     } catch (e) {
       setFehler(e instanceof Error ? e.message : "Fehler bei der Korrektur");
@@ -162,7 +180,7 @@ export default function WiMaSeite() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-emerald-500 font-medium uppercase tracking-wide">
-              {istProbeklausur ? "Abschluss" : `Kapitel ${wimaFortschritt.themaIndex + 1}`}
+              {istWiederholung ? "Adaptive Wiederholung" : istProbeklausur ? "Abschluss" : `Kapitel ${wimaFortschritt.themaIndex + 1}`}
             </p>
             <p className="font-semibold text-emerald-900">{aktuellesThema.titel}</p>
             <p className="text-xs text-emerald-600 mt-0.5">{aktuellesThema.beschreibung}</p>

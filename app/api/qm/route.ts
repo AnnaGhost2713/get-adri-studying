@@ -27,6 +27,12 @@ export async function POST(req: NextRequest) {
     const thema = (body.thema as string) || "";
     const pdfPraefix = (body.pdfPraefix as string) || subfach;
     const fachLabel = SUBFACH_LABEL[subfach] ?? "Quantitative Methoden";
+    const reviewFocus = Array.isArray(body.reviewFocus)
+      ? (body.reviewFocus as string[]).filter((fehler) => typeof fehler === "string").slice(0, 5)
+      : [];
+    const reviewHint = reviewFocus.length
+      ? `Dies ist eine adaptive Wiederholung. Prüfe gezielt diese bisherigen Schwächen:\n- ${reviewFocus.join("\n- ")}\n`
+      : "";
 
     if (action === "quiz") {
       const source = await getSourceText(subfach, pdfPraefix);
@@ -37,7 +43,7 @@ export async function POST(req: NextRequest) {
         ? "Mix aus konzeptuellem Verständnis (2 Fragen) und konkreten Rechenbeispielen (2 Fragen)."
         : "Mix aus begrifflichem Verständnis (2 Fragen) und Interpretationsaufgaben (2 Fragen).";
 
-      const prompt = `${sourceHint}${themaHint}Du bist ein ${fachLabel}-Tutor für Wirtschaftsingenieur-Studenten. Generiere 4 Multiple-Choice-Fragen auf Deutsch${thema ? ` speziell zum Thema "${thema}"` : ""}.
+      const prompt = `${sourceHint}${themaHint}${reviewHint}Du bist ein ${fachLabel}-Tutor für Wirtschaftsingenieur-Studenten. Generiere 4 Multiple-Choice-Fragen auf Deutsch${thema ? ` speziell zum Thema "${thema}"` : ""}.
 
 ${wimaInstr}
 
@@ -101,7 +107,7 @@ Antworte NUR mit diesem JSON-Format:
 }`;
 
       const themaHint = !istProbeklausur && thema ? `Thema: "${thema}"\n` : "";
-      const prompt = `${sourceHint}${themaHint}Du bist ein ${fachLabel}-Tutor. Generiere eine ${istProbeklausur ? "klausurtypische" : `${schwierigkeit}schwere`} Übungsaufgabe auf Deutsch.\n\n${aufgabeInstr}`;
+      const prompt = `${sourceHint}${themaHint}${reviewHint}Du bist ein ${fachLabel}-Tutor. Generiere eine ${istProbeklausur ? "klausurtypische" : `${schwierigkeit}schwere`} Übungsaufgabe auf Deutsch.\n\n${aufgabeInstr}`;
       const raw = await callGemini(prompt);
       const data = extractJSON<Record<string, unknown>>(raw);
       return NextResponse.json(data);

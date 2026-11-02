@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Scale, BookOpen, CheckCircle, XCircle, Trophy, RotateCcw, Loader2, ChevronRight } from "lucide-react";
 import MultipleChoiceQuiz, { MCFrage } from "@/components/MultipleChoiceQuiz";
 import LoesungsEingabe from "@/components/LoesungsEingabe";
 import { useUser } from "@/lib/UserContext";
-import { getAktuellesThema } from "@/lib/lernplan";
+import { getAktuellesThema, getThemaById } from "@/lib/lernplan";
 
 type Schritt = "start" | "quiz_laden" | "quiz" | "fall_laden" | "fall" | "korrigieren" | "korrektur";
 
@@ -38,8 +39,14 @@ Subsumtion: Hier hat [Name] ... . Damit sind die Voraussetzungen erfüllt / nich
 Ergebnis: [Name] hat / hat keinen Anspruch auf ... gegen [Name].`;
 
 export default function WPRSeite() {
-  const { addXP, sitzungAbgeschlossen, wprFortschritt } = useUser();
-  const aktuellesThema = getAktuellesThema("wpr", wprFortschritt.themaIndex);
+  const { addXP, sitzungAbgeschlossen, lernversuchSpeichern, fehlerbuch, wprFortschritt } = useUser();
+  const searchParams = useSearchParams();
+  const wiederholungsThema = getThemaById("wpr", searchParams.get("review"));
+  const aktuellesThema = wiederholungsThema ?? getAktuellesThema("wpr", wprFortschritt.themaIndex);
+  const istWiederholung = Boolean(wiederholungsThema);
+  const wiederholungsEintrag = fehlerbuch.find(
+    (eintrag) => eintrag.fach === "wpr" && eintrag.themaId === wiederholungsThema?.id
+  );
 
   const [schritt, setSchritt] = useState<Schritt>("start");
   const [fragen, setFragen] = useState<MCFrage[]>([]);
@@ -64,6 +71,7 @@ export default function WPRSeite() {
           action: "quiz",
           thema: aktuellesThema.titel,
           pdfPraefix: aktuellesThema.pdfPraefix,
+          reviewFocus: wiederholungsEintrag?.fehler,
         }),
       });
       const data = await res.json();
@@ -87,6 +95,7 @@ export default function WPRSeite() {
           thema: aktuellesThema.titel,
           schluesselwoerter: aktuellesThema.schluesselwoerter,
           pdfPraefix: aktuellesThema.pdfPraefix,
+          reviewFocus: wiederholungsEintrag?.fehler,
         }),
       });
       const data = await res.json();
@@ -108,6 +117,8 @@ export default function WPRSeite() {
             action: "fall",
             thema: aktuellesThema.titel,
             schluesselwoerter: aktuellesThema.schluesselwoerter,
+            pdfPraefix: aktuellesThema.pdfPraefix,
+            reviewFocus: wiederholungsEintrag?.fehler,
           }),
         });
         const data = await res.json();
@@ -151,7 +162,26 @@ export default function WPRSeite() {
       const gesamt = 50 + quizBonus + loesungsBonus;
       setVerdienteXP(gesamt);
       addXP(gesamt);
-      sitzungAbgeschlossen("wpr");
+      sitzungAbgeschlossen("wpr", !istWiederholung);
+      const kriterien = [
+        ["Obersatz", k.obersatz],
+        ["Definition", k.definition],
+        ["Subsumtion", k.subsumtion],
+        ["Ergebnis", k.ergebnis],
+        ["Normen", k.normen],
+      ] as const;
+      lernversuchSpeichern({
+        fach: "wpr",
+        themaId: aktuellesThema.id,
+        themaTitel: aktuellesThema.titel,
+        punkte: k.punkte,
+        fehler: kriterien
+          .filter(([, kriterium]) => kriterium && !kriterium.ok)
+          .map(([label, kriterium]) => `${label}: ${kriterium?.anmerkung ?? ""}`),
+        feedback: k.gesamtfeedback,
+        aufgabe: `${aktuellerFall.sachverhalt}\n\n${aktuellerFall.frage}`,
+        istWiederholung,
+      });
       setSchritt("korrektur");
     } catch (e) {
       setFehler(e instanceof Error ? e.message : "Fehler bei der Korrektur");
@@ -193,7 +223,7 @@ export default function WPRSeite() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-indigo-500 font-medium uppercase tracking-wide">
-              Aktuelles Thema · Kapitel {wprFortschritt.themaIndex + 1}
+              {istWiederholung ? "Adaptive Wiederholung" : `Aktuelles Thema · Kapitel ${wprFortschritt.themaIndex + 1}`}
             </p>
             <p className="font-semibold text-indigo-900">{aktuellesThema.titel}</p>
             <p className="text-xs text-indigo-600 mt-0.5">{aktuellesThema.beschreibung}</p>
@@ -230,7 +260,8 @@ export default function WPRSeite() {
           <div className="text-5xl">⚖️</div>
           <h2 className="text-xl font-semibold text-slate-800">Bereit für eine WPR-Übung?</h2>
           <p className="text-slate-500 text-sm max-w-sm mx-auto">
-            Heute: <strong>{aktuellesThema.titel}</strong>. Zuerst 4 MC-Fragen, dann ein Fall im Gutachtenstil.
+            {istWiederholung ? "Fehler gezielt schließen" : "Heute"}: <strong>{aktuellesThema.titel}</strong>.
+            {" "}Zuerst 4 MC-Fragen, dann ein Fall im Gutachtenstil.
           </p>
           <div className="flex items-center justify-center gap-6 text-xs text-slate-400 pt-2">
             <span className="flex items-center gap-1"><BookOpen className="w-3.5 h-3.5" /> Wissenscheck</span>
