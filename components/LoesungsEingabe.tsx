@@ -96,6 +96,7 @@ export default function LoesungsEingabe({
         <div className="space-y-3">
           {fotoBase64 ? (
             <div className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element -- local base64 preview; next/image adds nothing here */}
               <img
                 src={`data:image/jpeg;base64,${fotoBase64}`}
                 alt="Deine handschriftliche Lösung"
